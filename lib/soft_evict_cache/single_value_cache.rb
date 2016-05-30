@@ -37,9 +37,14 @@ module SoftEvictCache
       else
         promise = Concurrent::Promise.new
         @agent.send do |old_entry|
-          new_entry = update_entry(old_entry)
-          promise.set(new_entry.value)
-          new_entry
+          begin
+            new_entry = update_entry(old_entry)
+            promise.set(new_entry.value)
+            new_entry
+          rescue Exception => e
+            promise.fail(e)
+            raise e
+          end
         end
         promise.value
       end

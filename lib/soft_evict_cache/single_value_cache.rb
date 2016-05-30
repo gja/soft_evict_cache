@@ -46,7 +46,7 @@ module SoftEvictCache
             raise e
           end
         end
-        promise.value
+        promise.value!
       end
     end
   end

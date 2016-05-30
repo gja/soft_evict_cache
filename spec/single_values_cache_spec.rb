@@ -26,4 +26,11 @@ describe SoftEvictCache::SingleValueCache do
     sleep(0.05)
     expect(cache.value).to eq(2)
   end
+
+  it "catches errors in the cache" do
+    cache = SoftEvictCache::SingleValueCache.build(1, 2) do
+      raise "foobar"
+    end
+    expect { cache.value }.to raise_error("foobar")
+  end
 end

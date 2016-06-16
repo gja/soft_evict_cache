@@ -23,10 +23,16 @@ module SoftEvictCache
       @agent = Concurrent::Agent.new(Entry.new(nil, Time.now - 1, Time.now - 1))
     end
 
-    def update_entry(old_entry)
+    def update_entry(old_entry, promise = nil)
       return old_entry unless old_entry.soft_evicted?
       value = @next_value.call
-      Entry.new(value, Time.now + @soft_evict, Time.now + @hard_evict)
+      entry = Entry.new(value, Time.now + @soft_evict, Time.now + @hard_evict)
+      promise.set(entry) if promise
+      entry
+    rescue Exception => e
+      promise.fail(e) if promise rescue nil
+      sleep(0.25) rescue nil
+      old_entry
     end
 
     def value
@@ -36,17 +42,8 @@ module SoftEvictCache
         current_entry.value
       else
         promise = Concurrent::Promise.new
-        @agent.send do |old_entry|
-          begin
-            new_entry = update_entry(old_entry)
-            promise.set(new_entry.value)
-            new_entry
-          rescue Exception => e
-            promise.fail(e)
-            raise e
-          end
-        end
-        promise.value!
+        @agent.send { |old_entry| update_entry(old_entry, promise) }
+        promise.value!.value
       end
     end
   end
